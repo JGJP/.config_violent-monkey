@@ -2,7 +2,7 @@
 // @name         GitHub: mark merged/closed/read PR notifications as done
 // @namespace    https://github.com/
 // @version      1.0.0
-// @description  Adds buttons to mark merged, closed, or read PR notifications as done on the notifications page.
+// @description  Adds buttons to mark merged, closed, read, or security PR notifications as done on the notifications page.
 // @match        https://github.com/notifications*
 // @run-at       document-idle
 // @grant        none
@@ -33,6 +33,7 @@
   const markMerged = () => markMatching(byIcon('.octicon-git-merge'), 'merged')
   const markClosed = () => markMatching(byIcon('.octicon-git-pull-request-closed'), 'closed')
   const markRead = () => markMatching((row) => !isUnread(row), 'read')
+  const markSecurity = () => markMatching(byIcon('.octicon-alert, .octicon-alert-fill, .octicon-shield'), 'security')
 
   const makeButton = ({ id, text, background, onclick }) => {
     const btn = document.createElement('button')
@@ -68,11 +69,12 @@
       flexDirection: 'column',
       gap: '8px',
     })
-    // Colors match GitHub's PR state icons: merged = purple, closed = red; read = grey
+    // Colors match GitHub's PR state icons: merged = purple, closed = red, read = grey, security = amber
     panel.append(
       makeButton({ id: 'gh-merged-done-btn', text: 'Mark merged as done', background: '#8250df', onclick: markMerged }),
       makeButton({ id: 'gh-closed-done-btn', text: 'Mark closed as done', background: '#cf222e', onclick: markClosed }),
       makeButton({ id: 'gh-read-done-btn', text: 'Mark read as done', background: '#57606a', onclick: markRead }),
+      makeButton({ id: 'gh-security-done-btn', text: 'Mark security as done', background: '#bc4c00', onclick: markSecurity }),
     )
     document.body.appendChild(panel)
   }
@@ -82,4 +84,5 @@
   // markMerged()
   // markClosed()
   // markRead()
+  // markSecurity()
 })()
