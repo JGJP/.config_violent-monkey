@@ -1,0 +1,110 @@
+// ==UserScript==
+// @name         GitHub PR State Favicon
+// @namespace    https://github.com/pr-state-favicon
+// @version      6.2.0
+// @description  Sets the tab favicon to the matching Octicon per pull request state. Re-applies after load with a fresh URL so Firefox actually repaints (Firefox ignores favicon changes made during load).
+// @match        https://github.com/*/*/pull/*
+// @run-at       document-idle
+// @grant        none
+// ==/UserScript==
+
+(() => {
+  'use strict'
+
+  const LOG = (...a) => console.debug('%c[pr-favicon]', 'color:#8250df', ...a)
+
+  const STATES = {
+    open: {
+      color: '#1f883d',
+      path: 'M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z',
+    },
+    draft: {
+      color: '#656d76',
+      path: 'M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 14a2.25 2.25 0 1 1 0-4.5 2.25 2.25 0 0 1 0 4.5ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM14 7.5a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm0-4.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z',
+    },
+    merged: {
+      color: '#8250df',
+      path: 'M5.45 5.154A4.25 4.25 0 0 0 9.25 7.5h1.378a2.251 2.251 0 1 1 0 1.5H9.25A5.734 5.734 0 0 1 5 7.123v3.505a2.25 2.25 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.95-.218ZM4.25 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm8.5-4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM5 3.25a.75.75 0 1 0 0 .005V3.25Z',
+    },
+    closed: {
+      color: '#cf222e',
+      path: 'M3.25 1A2.25 2.25 0 0 1 4 5.372v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.251 2.251 0 0 1 3.25 1Zm9.5 5.5a.75.75 0 0 1 .75.75v3.378a2.251 2.251 0 1 1-1.5 0V7.25a.75.75 0 0 1 .75-.75Zm-2.03-5.273a.75.75 0 0 1 1.06 0l.97.97.97-.97a.748.748 0 0 1 1.265.332.75.75 0 0 1-.205.729l-.97.97.97.97a.751.751 0 0 1-.018 1.042.751.751 0 0 1-1.042.018l-.97-.97-.97.97a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734l.97-.97-.97-.97a.75.75 0 0 1 0-1.06ZM2.5 3.25a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0ZM3.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm9.5 0a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z',
+    },
+  }
+
+  const fromText = (t) => {
+    const k = (t || '').trim().toLowerCase()
+    return STATES[k] ? k : null
+  }
+
+  const detectState = () => {
+    // Current React UI: first StateLabel in DOM is the PR header state
+    const label = document.querySelector('[class*="StateLabel"]')
+    const fromLabel = fromText(label?.textContent)
+    if (fromLabel) return fromLabel
+    // Legacy UI fallback only (scoped to a real .State badge, not stray State-- widgets)
+    const legacy = document.querySelector('.State[class*="State--"]')
+    const cls = (legacy?.className || '').toString()
+    if (/State--merged/.test(cls)) return 'merged'
+    if (/State--draft/.test(cls)) return 'draft'
+    if (/State--closed/.test(cls)) return 'closed'
+    if (/State--open/.test(cls)) return 'open'
+    return null
+  }
+
+  let nonce = 0
+  let currentState = null // last state we drew, so we can catch in-place changes (e.g. clicking Merge)
+  // Fresh URL each call (invisible nonce pixel) so Firefox is forced to repaint
+  const buildHref = ({ color, path }) => {
+    nonce += 1
+    const canvas = document.createElement('canvas')
+    canvas.width = 32
+    canvas.height = 32
+    const ctx = canvas.getContext('2d')
+    ctx.scale(2, 2)
+    ctx.fillStyle = color
+    ctx.fill(new Path2D(path))
+    ctx.fillStyle = `rgba(${nonce % 256},${(nonce >> 8) % 256},0,0.004)`
+    ctx.fillRect(0, 0, 1, 1)
+    return canvas.toDataURL('image/png')
+  }
+
+  const setFavicon = (href) => {
+    document.querySelectorAll('link[rel~="icon"]').forEach((l) => l.remove())
+    const link = document.createElement('link')
+    link.rel = 'icon'
+    link.type = 'image/png'
+    link.href = href
+    link.dataset.prFavicon = '1'
+    document.head.appendChild(link)
+  }
+
+  // Unconditional apply with a brand-new URL -> guaranteed repaint even if the DOM already looked "ours"
+  const applyForced = (why) => {
+    if (!/\/pull\/\d+/.test(location.pathname)) return
+    const state = detectState()
+    if (!state) { LOG('no state yet', why); return }
+    setFavicon(buildHref(STATES[state]))
+    currentState = state
+    LOG('applied', state, '(' + why + ')')
+  }
+
+  // Burst of re-applies spanning the load-settle window; each is a fresh URL Firefox will honor
+  const burst = (label) => [0, 400, 1200, 2500, 5000].forEach((ms) => setTimeout(() => applyForced(`${label}+${ms}ms`), ms))
+
+  // Keep-alive: re-apply if GitHub reclaimed the icon OR the PR state changed in place (Merge/Close)
+  const keepAlive = () => {
+    if (!/\/pull\/\d+/.test(location.pathname)) return
+    const state = detectState()
+    if (!state) return
+    const links = document.querySelectorAll('link[rel~="icon"]')
+    const ours = links.length === 1 && links[0].dataset.prFavicon === '1'
+    if (!ours) applyForced('reclaim')
+    else if (state !== currentState) applyForced('state-change')
+  }
+
+  burst('load')
+  setInterval(keepAlive, 1000)
+  document.addEventListener('turbo:load', () => burst('turbo'))
+  document.addEventListener('pjax:end', () => burst('pjax'))
+})()

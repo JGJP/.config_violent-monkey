@@ -1,0 +1,161 @@
+{
+  "scripts": {
+    "GitHub- mark merged-closed-read PR notifications as done": {
+      "custom": {
+        "origInclude": true,
+        "origExclude": true,
+        "origMatch": true,
+        "origExcludeMatch": true,
+        "origTag": true,
+        "pathMap": {}
+      },
+      "config": {
+        "enabled": 1,
+        "shouldUpdate": 1,
+        "httpOnly": 0,
+        "removed": 0
+      },
+      "position": 1,
+      "lastModified": 1784706502175,
+      "lastUpdated": 1784706502175
+    },
+    "GitHub PR State Favicon": {
+      "custom": {
+        "origInclude": true,
+        "origExclude": true,
+        "origMatch": true,
+        "origExcludeMatch": true,
+        "origTag": true,
+        "pathMap": {}
+      },
+      "config": {
+        "enabled": 1,
+        "shouldUpdate": 1,
+        "httpOnly": 0,
+        "removed": 0
+      },
+      "position": 2,
+      "lastModified": 1783843240331,
+      "lastUpdated": 1783843240331
+    },
+    "GitHub PR- auto Load more": {
+      "custom": {
+        "origInclude": true,
+        "origExclude": true,
+        "origMatch": true,
+        "origExcludeMatch": true,
+        "origTag": true,
+        "pathMap": {}
+      },
+      "config": {
+        "enabled": 1,
+        "shouldUpdate": 1,
+        "httpOnly": 0,
+        "removed": 0
+      },
+      "position": 3,
+      "lastModified": 1784812441528,
+      "lastUpdated": 1784812441528
+    },
+    "GitHub PR- expand CI checks (no scroll)": {
+      "custom": {
+        "origInclude": true,
+        "origExclude": true,
+        "origMatch": true,
+        "origExcludeMatch": true,
+        "origTag": true,
+        "pathMap": {}
+      },
+      "config": {
+        "enabled": 1,
+        "shouldUpdate": 1,
+        "httpOnly": 0,
+        "removed": 0
+      },
+      "position": 4,
+      "lastModified": 1785741682662,
+      "lastUpdated": 1785741682662
+    }
+  },
+  "settings": {
+    "isApplied": true,
+    "blacklist": "file://*/*",
+    "blacklistNet": "file://*/*",
+    "popupWidth": 320,
+    "updateEnabledScriptsOnly": true,
+    "gmCookieHttpOnly": false,
+    "gmDownloadViaApi": false,
+    "pageMenuCommands": false,
+    "autoUpdate": 1,
+    "lastUpdate": 1785469924494,
+    "lastModified": 0,
+    "showBadge": "unique",
+    "badgeColor": "#880088",
+    "badgeColorBlocked": "#888888",
+    "exportValues": true,
+    "exportNameTemplate": "[violentmonkey]_YYYY-MM-DD_HH.mm.ss",
+    "expose": {
+      "greasyfork%2Eorg": true,
+      "sleazyfork%2Eorg": false
+    },
+    "closeAfterInstall": false,
+    "editAfterInstall": false,
+    "helpForLocalFile": true,
+    "trackLocalFile": false,
+    "autoReload": false,
+    "features": null,
+    "syncScriptStatus": true,
+    "syncAutomatically": true,
+    "customCSS": "",
+    "importScriptData": true,
+    "importSettings": true,
+    "notifyUpdates": false,
+    "notifyUpdatesGlobal": false,
+    "version": 1,
+    "defaultInjectInto": "auto",
+    "ffCsp": false,
+    "ffInject": false,
+    "xhrInject": false,
+    "filters": {
+      "showOrder": false,
+      "showVisit": false,
+      "sort": "exec",
+      "viewSingleColumn": false,
+      "viewTable": false
+    },
+    "filtersPopup": {
+      "sort": "exec",
+      "enabledFirst": false,
+      "groupRunAt": true,
+      "hideDisabled": ""
+    },
+    "editor": {
+      "killTrailingSpaceOnSave": true,
+      "showTrailingSpace": true,
+      "autocompleteOnTyping": 100,
+      "lineWrapping": false,
+      "indentWithTabs": false,
+      "indentUnit": 2,
+      "tabSize": 2,
+      "undoDepth": 500
+    },
+    "editorTheme": "",
+    "editorThemeName": null,
+    "editorWindow": false,
+    "editorWindowPos": {},
+    "editorWindowSimple": true,
+    "scriptTemplate": "// ==UserScript==\n// @name        New script {{name}}\n// @namespace   Violentmonkey Scripts\n// @icon        {{icon}}\n// @version     1.0.0\n//\n// @match       {{url}}\n// @grant       none\n//\n// @author      -\n// @description\n// ==/UserScript==\n",
+    "showAdvanced": true,
+    "valueEditor": {
+      "autocompleteOnTyping": 100,
+      "lineWrapping": false,
+      "indentWithTabs": false,
+      "indentUnit": 2,
+      "tabSize": 2,
+      "undoDepth": 500,
+      "editAsString": true
+    },
+    "uiTheme": ""
+  },
+  "values": {}
+}
