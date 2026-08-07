@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name         GitHub PR State Favicon
-// @namespace    https://github.com/pr-state-favicon
+// @name         GitHub PR: state favicon
+// @namespace    https://github.com/
 // @version      6.2.0
 // @description  Sets the tab favicon to the matching Octicon per pull request state. Re-applies after load with a fresh URL so Firefox actually repaints (Firefox ignores favicon changes made during load).
 // @match        https://github.com/*/*/pull/*
