@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GitHub PR: state favicon
 // @namespace    https://github.com/
-// @version      6.2.0
-// @description  Sets the tab favicon to the matching Octicon per pull request state. Re-applies after load with a fresh URL so Firefox actually repaints (Firefox ignores favicon changes made during load).
+// @version      7.0.0
+// @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Re-applies after load with a fresh URL so Firefox actually repaints (Firefox ignores favicon changes made during load).
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
 // @grant        none
@@ -32,6 +32,35 @@
     },
   }
 
+  // CI rollup icons — swapped in for open/draft PRs so the tab tells you if checks are running or broke
+  const CI_ICONS = {
+    // amber solid disc = checks in progress
+    pending: { color: '#bf8700', path: 'M8 2a6 6 0 1 1 0 12A6 6 0 0 1 8 2Z' },
+    // red x-circle (evenodd punches the x out) = checks failed
+    failure: { color: '#cf222e', fillRule: 'evenodd', path: 'M2.343 13.657A8 8 0 1 1 13.658 2.343 8 8 0 0 1 2.343 13.657ZM6.03 4.97a.751.751 0 0 0-1.042.018.751.751 0 0 0-.018 1.042L6.94 8 4.97 9.97a.749.749 0 0 0 .326 1.275.749.749 0 0 0 .734-.215L8 9.06l1.97 1.97a.749.749 0 0 0 1.275-.326.749.749 0 0 0-.215-.734L9.06 8l1.97-1.97a.749.749 0 0 0-.326-1.275.749.749 0 0 0-.734.215L8 6.94Z' },
+  }
+
+  // GitHub's aggregate check-rollup octicon encodes the state (same set used next to commits)
+  const CI_BY_OCTICON = {
+    'octicon-x': 'failure',
+    'octicon-x-circle-fill': 'failure',
+    'octicon-stop': 'failure',
+    'octicon-alert': 'failure',
+    'octicon-dot-fill': 'pending',
+    'octicon-dot': 'pending',
+    'octicon-clock': 'pending',
+    'octicon-hourglass': 'pending',
+    'octicon-check': 'success',
+    'octicon-check-circle-fill': 'success',
+    'octicon-skip': 'success',
+  }
+  const CI_BY_COLOR = {
+    'color-fg-danger': 'failure',
+    'color-fg-severe': 'failure',
+    'color-fg-attention': 'pending',
+    'color-fg-success': 'success',
+  }
+
   const fromText = (t) => {
     const k = (t || '').trim().toLowerCase()
     return STATES[k] ? k : null
@@ -52,10 +81,33 @@
     return null
   }
 
+  // Aggregate CI state from GitHub's check rollup (only rendered on the Conversation tab).
+  // Returns 'failure' | 'pending' | 'success' | null (null = unknown, keep the state icon).
+  const detectCI = () => {
+    const svg = [...document.querySelectorAll('svg[aria-label]')].find((el) => {
+      const a = el.getAttribute('aria-label') || '' // header rollup reads e.g. "13 / 17 checks OK"
+      return /\bchecks?\b/i.test(a) && [...el.classList].some((c) => CI_BY_OCTICON[c])
+    })
+    if (!svg) return null
+    const octicon = [...svg.classList].find((c) => CI_BY_OCTICON[c])
+    if (octicon) return CI_BY_OCTICON[octicon]
+    for (let el = svg; el; el = el.parentElement) {
+      const c = [...(el.classList || [])].find((x) => CI_BY_COLOR[x])
+      if (c) return CI_BY_COLOR[c]
+    }
+    return null
+  }
+
+  // CI status owns the icon while a PR is still open/draft; merged/closed always keep the state icon
+  const pickIcon = (state, ci) => {
+    if ((state === 'open' || state === 'draft') && (ci === 'failure' || ci === 'pending')) return CI_ICONS[ci]
+    return STATES[state]
+  }
+
   let nonce = 0
-  let currentState = null // last state we drew, so we can catch in-place changes (e.g. clicking Merge)
+  let currentKey = null // last state:ci we drew, so we can catch in-place changes (Merge, or CI finishing)
   // Fresh URL each call (invisible nonce pixel) so Firefox is forced to repaint
-  const buildHref = ({ color, path }) => {
+  const buildHref = ({ color, path, fillRule }) => {
     nonce += 1
     const canvas = document.createElement('canvas')
     canvas.width = 32
@@ -63,7 +115,8 @@
     const ctx = canvas.getContext('2d')
     ctx.scale(2, 2)
     ctx.fillStyle = color
-    ctx.fill(new Path2D(path))
+    const p = new Path2D(path)
+    fillRule ? ctx.fill(p, fillRule) : ctx.fill(p)
     ctx.fillStyle = `rgba(${nonce % 256},${(nonce >> 8) % 256},0,0.004)`
     ctx.fillRect(0, 0, 1, 1)
     return canvas.toDataURL('image/png')
@@ -84,9 +137,10 @@
     if (!/\/pull\/\d+/.test(location.pathname)) return
     const state = detectState()
     if (!state) { LOG('no state yet', why); return }
-    setFavicon(buildHref(STATES[state]))
-    currentState = state
-    LOG('applied', state, '(' + why + ')')
+    const ci = detectCI()
+    setFavicon(buildHref(pickIcon(state, ci)))
+    currentKey = state + ':' + (ci || '')
+    LOG('applied', state, 'ci=' + ci, '(' + why + ')')
   }
 
   // Burst of re-applies spanning the load-settle window; each is a fresh URL Firefox will honor
@@ -97,10 +151,11 @@
     if (!/\/pull\/\d+/.test(location.pathname)) return
     const state = detectState()
     if (!state) return
+    const key = state + ':' + (detectCI() || '')
     const links = document.querySelectorAll('link[rel~="icon"]')
     const ours = links.length === 1 && links[0].dataset.prFavicon === '1'
     if (!ours) applyForced('reclaim')
-    else if (state !== currentState) applyForced('state-change')
+    else if (key !== currentKey) applyForced('state-change')
   }
 
   burst('load')
