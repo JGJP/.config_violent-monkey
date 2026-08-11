@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GitHub PR: state favicon
 // @namespace    https://github.com/
-// @version      7.0.1
-// @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Re-applies after load with a fresh URL so Firefox actually repaints (Firefox ignores favicon changes made during load).
+// @version      7.1.0
+// @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Polls once a second and re-applies with a fresh URL whenever the state changes or GitHub reclaims the icon (a fresh URL forces Firefox to repaint).
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
 // @grant        none
@@ -147,11 +147,9 @@
     LOG('applied', state, 'ci=' + ci, '(' + why + ')')
   }
 
-  // Burst of re-applies spanning the load-settle window; each is a fresh URL Firefox will honor
-  const burst = (label) => [0, 400, 1200, 2500, 5000].forEach((ms) => setTimeout(() => applyForced(`${label}+${ms}ms`), ms))
-
-  // Keep-alive: re-apply if GitHub reclaimed the icon OR the PR state changed in place (Merge/Close)
-  const keepAlive = () => {
+  // Single poll drives everything: first paint (favicon isn't ours yet), GitHub reclaiming the icon,
+  // in-place PR state changes (Merge/Close), CI finishing, and SPA navigations (DOM is re-read each tick).
+  const poll = () => {
     if (!/\/pull\/\d+/.test(location.pathname)) return
     const state = detectState()
     if (!state) return
@@ -162,8 +160,5 @@
     else if (key !== currentKey) applyForced('state-change')
   }
 
-  burst('load')
-  setInterval(keepAlive, 1000)
-  document.addEventListener('turbo:load', () => burst('turbo'))
-  document.addEventListener('pjax:end', () => burst('pjax'))
+  setInterval(poll, 1000)
 })()
