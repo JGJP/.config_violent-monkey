@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR: state favicon
 // @namespace    https://github.com/
-// @version      7.0.0
+// @version      7.0.1
 // @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Re-applies after load with a fresh URL so Firefox actually repaints (Firefox ignores favicon changes made during load).
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
@@ -84,10 +84,14 @@
   // Aggregate CI state from GitHub's check rollup (only rendered on the Conversation tab).
   // Returns 'failure' | 'pending' | 'success' | null (null = unknown, keep the state icon).
   const detectCI = () => {
-    const svg = [...document.querySelectorAll('svg[aria-label]')].find((el) => {
-      const a = el.getAttribute('aria-label') || '' // header rollup reads e.g. "13 / 17 checks OK"
+    // Every commit row carries its own "N / M checks OK" rollup; the LAST in the document is the
+    // HEAD commit (newest push) — the only state that matters. Taking the first would pin the icon
+    // to a stale earlier commit, so a green HEAD never clears a prior push's red/amber.
+    const svgs = [...document.querySelectorAll('svg[aria-label]')].filter((el) => {
+      const a = el.getAttribute('aria-label') || '' // rollup reads e.g. "13 / 17 checks OK"
       return /\bchecks?\b/i.test(a) && [...el.classList].some((c) => CI_BY_OCTICON[c])
     })
+    const svg = svgs[svgs.length - 1]
     if (!svg) return null
     const octicon = [...svg.classList].find((c) => CI_BY_OCTICON[c])
     if (octicon) return CI_BY_OCTICON[octicon]
