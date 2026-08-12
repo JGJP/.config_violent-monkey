@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GitHub PR: state favicon
 // @namespace    https://github.com/
-// @version      7.1.1
-// @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Bursts re-applies across the load-settle window (and on turbo/pjax nav) and then polls once a second, re-applying with a fresh URL whenever the state changes or GitHub reclaims the icon (a fresh URL forces Firefox to repaint).
+// @version      7.2.0
+// @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Bursts on load, polls once a second, and watches the head via MutationObserver, re-applying with a fresh URL whenever the state changes or GitHub re-injects its own icon — always leaving ours as the sole icon link so Firefox can't fall back to GitHub's.
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
 // @grant        none
@@ -67,10 +67,12 @@
   }
 
   const detectState = () => {
-    // Current React UI: first StateLabel in DOM is the PR header state
-    const label = document.querySelector('[class*="StateLabel"]')
-    const fromLabel = fromText(label?.textContent)
-    if (fromLabel) return fromLabel
+    // Current React UI: several StateLabel nodes exist (some icon-only/empty); take the first that
+    // actually names a state, not blindly element [0] — an empty one first would read as "no state".
+    for (const label of document.querySelectorAll('[class*="StateLabel"]')) {
+      const s = fromText(label.textContent)
+      if (s) return s
+    }
     // Legacy UI fallback only (scoped to a real .State badge, not stray State-- widgets)
     const legacy = document.querySelector('.State[class*="State--"]')
     const cls = (legacy?.className || '').toString()
@@ -126,8 +128,17 @@
     return canvas.toDataURL('image/png')
   }
 
+  const iconLinks = () => [...document.querySelectorAll('link[rel~="icon"]')]
+  const ourIcon = () => iconLinks().find((l) => l.dataset.prFavicon === '1')
+  const foreignIcons = () => iconLinks().filter((l) => l.dataset.prFavicon !== '1')
+  // Re-apply whenever our icon is missing OR GitHub has (re-)injected one of its own alongside it —
+  // a lingering foreign link lets Firefox fall back to GitHub's icon.
+  const needsApply = () => !ourIcon() || foreignIcons().length > 0
+
   const setFavicon = (href) => {
-    document.querySelectorAll('link[rel~="icon"]').forEach((l) => l.remove())
+    // Strip everything (GitHub ships rel="icon" AND rel="alternate icon", plus our stale one) so the
+    // fresh link is the ONLY icon link — Firefox then has nothing else to prefer.
+    iconLinks().forEach((l) => l.remove())
     const link = document.createElement('link')
     link.rel = 'icon'
     link.type = 'image/png'
@@ -157,9 +168,7 @@
     const state = detectState()
     if (!state) return
     const key = state + ':' + (detectCI() || '')
-    const links = document.querySelectorAll('link[rel~="icon"]')
-    const ours = links.length === 1 && links[0].dataset.prFavicon === '1'
-    if (!ours) applyForced('reclaim')
+    if (needsApply()) applyForced('reclaim')
     else if (key !== currentKey) applyForced('state-change')
   }
 
@@ -167,4 +176,7 @@
   setInterval(poll, 1000)
   document.addEventListener('turbo:load', () => burst('turbo'))
   document.addEventListener('pjax:end', () => burst('pjax'))
+  // GitHub's SPA re-injects its own favicon on head reconciliation without firing a nav event; reclaim
+  // the instant that happens instead of waiting for the next poll tick (needsApply gates the self-loop).
+  new MutationObserver(() => { if (needsApply()) applyForced('head-mutation') }).observe(document.head, { childList: true })
 })()
