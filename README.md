@@ -11,7 +11,7 @@
 | [`github-pr-expand-ci-checks-no-scroll.user.js`](https://raw.githubusercontent.com/JGJP/.config_violent-monkey/master/github-pr-expand-ci-checks-no-scroll.user.js) | Keeps the PR checks section expanded at full height, with skipped checks folded. |
 | [`github-pr-approve-workflows.user.js`](https://raw.githubusercontent.com/JGJP/.config_violent-monkey/master/github-pr-approve-workflows.user.js) | Automatically clicks the "Approve and run workflows" button on PRs awaiting workflow approval. |
 | [`github-mark-pr-notifications-done.user.js`](https://raw.githubusercontent.com/JGJP/.config_violent-monkey/master/github-mark-pr-notifications-done.user.js) | Adds buttons to the notifications page to mark merged, closed, read, or security PR notifications as done. |
-| [`github-notification-shelf-done-and-next.user.js`](https://raw.githubusercontent.com/JGJP/.config_violent-monkey/master/github-notification-shelf-done-and-next.user.js) | Adds a "Done & next" button to the notification banner on a PR/issue, marking it done and jumping to the next notification in the inbox. |
+| [`github-notification-shelf-done-and-next.user.js`](https://raw.githubusercontent.com/JGJP/.config_violent-monkey/master/github-notification-shelf-done-and-next.user.js) | Adds "Done & next" and "Next" buttons to the notification banner on a PR/issue, jumping to the next notification in the inbox (the former also marks the current one done). |
 
 `config.json` is Violent Monkey's exported settings (per-script enabled state and options).
 
