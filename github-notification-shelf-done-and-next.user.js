@@ -56,19 +56,23 @@
     }
   }
 
+  // Insert next to the shelf's own "Done" button, in each action row so it
+  // shows at any viewport width (GitHub swaps a mobile/desktop <ul>).
   const addButton = () => {
     const shelf = document.querySelector('#notification-shelf')
-    if (!shelf || shelf.querySelector(`#${BTN_ID}`)) return
-    const backLink = shelf.querySelector('.js-notifications-back-to-inbox')
-    if (!backLink) return
-
-    const btn = document.createElement('button')
-    btn.id = BTN_ID
-    btn.type = 'button'
-    btn.className = 'btn btn-sm btn-primary mr-2'
-    btn.textContent = 'Done & next'
-    btn.onclick = () => doneAndNext(shelf, btn)
-    backLink.after(btn)
+    if (!shelf) return
+    shelf.querySelectorAll('li.notification-action-mark-archived').forEach((doneLi) => {
+      if (doneLi.parentElement.querySelector(`.${BTN_ID}`)) return
+      const li = document.createElement('li')
+      li.className = 'mr-2'
+      const btn = document.createElement('button')
+      btn.className = `${BTN_ID} btn btn-sm btn-primary`
+      btn.type = 'button'
+      btn.textContent = 'Done & next'
+      btn.onclick = () => doneAndNext(shelf, btn)
+      li.append(btn)
+      doneLi.after(li)
+    })
   }
 
   addButton()
