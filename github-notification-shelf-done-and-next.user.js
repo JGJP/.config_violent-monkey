@@ -64,6 +64,8 @@
     const btn = document.createElement('button')
     btn.className = `${MARKER} btn btn-sm btn-primary`
     btn.type = 'button'
+    // Positive tabindex puts these ahead of everything at the default 0, so Tab lands here first.
+    btn.tabIndex = 1
     btn.textContent = text
     btn.onclick = () => advance(shelf, btn, { markDone })
     li.append(btn)
