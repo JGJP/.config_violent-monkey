@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub: "Done & next" on the notification shelf
 // @namespace    https://github.com/
-// @version      1.2.1
+// @version      1.2.2
 // @description  Adds "Done & next" and "Next" buttons to the notification banner shown when you open a PR/issue from the notifications inbox. Jumps to the next notification in the inbox, optionally marking the current one done.
 // @match        https://github.com/*
 // @run-at       document-idle
@@ -97,7 +97,10 @@
       if (!(e.metaKey && e.ctrlKey && e.altKey && e.shiftKey && e.code === 'F12')) return
       e.preventDefault()
       e.stopPropagation()
-      const btn = [...document.querySelectorAll(`.${MARKER}`)].find((b) => b.textContent === 'Done & next')
+      // GitHub renders mobile + desktop rows, so prefer the visible button
+      // (offsetParent is null when hidden) — that's the one whose loading state shows.
+      const candidates = [...document.querySelectorAll(`.${MARKER}`)].filter((b) => b.textContent === 'Done & next')
+      const btn = candidates.find((b) => b.offsetParent !== null) || candidates[0]
       if (btn && !btn.disabled) btn.click()
     },
     true,
