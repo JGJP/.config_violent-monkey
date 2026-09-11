@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         GitHub PR: state favicon
 // @namespace    https://github.com/
-// @version      7.2.0
-// @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Bursts on load, polls once a second, and watches the head via MutationObserver, re-applying with a fresh URL whenever the state changes or GitHub re-injects its own icon — always leaving ours as the sole icon link so Firefox can't fall back to GitHub's.
+// @version      7.3.0
+// @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Bursts on load, polls once a second, and watches the head via MutationObserver, re-applying with a fresh URL whenever the state changes or GitHub re-injects its own icon — always leaving ours as the sole icon link so Firefox can't fall back to GitHub's. Also prefixes the tab title with the PR number (#1234).
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
 // @grant        none
@@ -110,6 +110,19 @@
     return STATES[state]
   }
 
+  // Prefix the tab title with "#1234 " so the PR number is visible even when the title is truncated.
+  // GitHub's SPA rewrites document.title on navigation, so we re-apply from poll + a title observer.
+  const prNumber = () => (location.pathname.match(/\/pull\/(\d+)/) || [])[1] || null
+  const applyTitle = () => {
+    const num = prNumber()
+    if (!num) return
+    const prefix = `#${num} `
+    if (!document.title.startsWith(prefix)) {
+      // Drop any stale "#<other-number> " prefix (SPA nav from one PR to another) before prepending.
+      document.title = prefix + document.title.replace(/^#\d+ /, '')
+    }
+  }
+
   let nonce = 0
   let currentKey = null // last state:ci we drew, so we can catch in-place changes (Merge, or CI finishing)
   // Fresh URL each call (invisible nonce pixel) so Firefox is forced to repaint
@@ -165,6 +178,7 @@
   // in-place PR state changes (Merge/Close), CI finishing, and SPA navigations (DOM is re-read each tick).
   const poll = () => {
     if (!/\/pull\/\d+/.test(location.pathname)) return
+    applyTitle()
     const state = detectState()
     if (!state) return
     const key = state + ':' + (detectCI() || '')
@@ -179,4 +193,8 @@
   // GitHub's SPA re-injects its own favicon on head reconciliation without firing a nav event; reclaim
   // the instant that happens instead of waiting for the next poll tick (needsApply gates the self-loop).
   new MutationObserver(() => { if (needsApply()) applyForced('head-mutation') }).observe(document.head, { childList: true })
+  // Correct the title the moment GitHub's SPA rewrites it, rather than waiting for the next poll tick.
+  const titleEl = document.querySelector('title')
+  if (titleEl) new MutationObserver(applyTitle).observe(titleEl, { childList: true, characterData: true, subtree: true })
+  applyTitle()
 })()
