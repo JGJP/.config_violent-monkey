@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         GitHub: command palette on Cmd+Shift+P
+// @name         GitHub: command palette on Cmd+Alt+P
 // @namespace    https://github.com/
-// @version      3.0.0
-// @description  Open GitHub's command palette with Cmd/Ctrl+Shift+P instead of Cmd/Ctrl+K.
+// @version      4.0.0
+// @description  Open GitHub's command palette with Cmd/Ctrl+Alt+P instead of Cmd/Ctrl+K.
 // @match        https://github.com/*
 // @run-at       document-start
 // @grant        none
@@ -36,9 +36,9 @@
   }
 
   const onKeydown = (e) => {
-    if (!(e.metaKey || e.ctrlKey) || !e.shiftKey || e.altKey || !isP(e)) return
+    if (!(e.metaKey || e.ctrlKey) || !e.altKey || e.shiftKey || !isP(e)) return
 
-    // Cmd/Ctrl+P is claimed by the browser's print dialog, so use Shift too.
+    // Cmd/Ctrl+P is claimed by the browser's print dialog, so use Alt too.
     e.preventDefault()
     e.stopImmediatePropagation()
 
