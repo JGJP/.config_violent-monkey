@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub: command palette on Cmd+Alt+P
 // @namespace    https://github.com/
-// @version      5.0.0
+// @version      6.0.0
 // @description  Open GitHub's command palette with Cmd/Ctrl+Alt+P, plus a debug button at the top of the page.
 // @match        https://github.com/*
 // @run-at       document-start
@@ -15,31 +15,61 @@
 
   const isP = (e) => e.code === 'KeyP' || e.key === 'p' || e.key === 'P'
 
-  // The header search button is what Cmd+K activates; clicking it is honored by
-  // GitHub's React handlers, whereas a synthetic Cmd+K keydown is often ignored.
-  const findTrigger = () => document.querySelector(
-    '[data-target="qbsearch-input.inputButton"], '
-    + 'button[aria-label^="Search or jump to"], '
-    + 'button.AppHeader-searchButton, '
-    + '#AppHeader-searchButton',
+  const CANDIDATE_SELECTORS = [
+    '[data-target="qbsearch-input.inputButton"]',
+    'button[aria-label^="Search or jump to"]',
+    'button[aria-label*="Search" i]',
+    'button.AppHeader-searchButton',
+    '#AppHeader-searchButton',
+    'qbsearch-input button',
+    '.AppHeader-search button',
+    '[data-hotkey~="Mod+k"]',
+    '[data-hotkey*="k"]',
+  ]
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+  const paletteOpen = () => document.querySelector(
+    'dialog[open], [role="dialog"], modal-dialog[open], command-palette[data-is-open]',
   )
 
-  const dispatchCmdK = () => {
-    document.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'k',
-      code: 'KeyK',
-      keyCode: 75,
-      which: 75,
-      metaKey: true,
-      bubbles: true,
-      cancelable: true,
-    }))
+  const dispatchKey = (target) => {
+    for (const mod of [{ metaKey: true }, { ctrlKey: true }]) {
+      target.dispatchEvent(new KeyboardEvent('keydown', {
+        key: 'k', code: 'KeyK', keyCode: 75, which: 75,
+        bubbles: true, cancelable: true, ...mod,
+      }))
+    }
   }
 
-  const openPalette = () => {
-    const trigger = findTrigger()
-    if (trigger) trigger.click()
-    else dispatchCmdK()
+  // Try each opening strategy in turn, stopping as soon as a dialog appears.
+  const openPalette = async ({ diagnose = false } = {}) => {
+    let clicked = null
+    for (const sel of CANDIDATE_SELECTORS) {
+      const el = document.querySelector(sel)
+      if (!el) continue
+      clicked = { sel, html: el.outerHTML.slice(0, 140) }
+      el.click()
+      await sleep(300)
+      if (paletteOpen()) return true
+    }
+
+    for (const target of [document, document.activeElement || document.body, window]) {
+      dispatchKey(target)
+      await sleep(200)
+      if (paletteOpen()) return true
+    }
+
+    if (diagnose) {
+      const matched = CANDIDATE_SELECTORS.filter((s) => document.querySelector(s))
+      alert(
+        'VM command-palette debug — nothing opened.\n\n'
+        + `clicked: ${JSON.stringify(clicked, null, 2)}\n\n`
+        + `matched selectors: ${JSON.stringify(matched, null, 2)}\n\n`
+        + `has <command-palette>: ${!!document.querySelector('command-palette')}`,
+      )
+    }
+    return false
   }
 
   const onKeydown = (e) => {
@@ -66,7 +96,7 @@
       'border:0', 'border-radius:6px', 'font:600 12px system-ui',
       'cursor:pointer', 'box-shadow:0 1px 4px rgba(0,0,0,.3)',
     ].join(';')
-    btn.addEventListener('click', openPalette)
+    btn.addEventListener('click', () => openPalette({ diagnose: true }))
     document.body.prepend(btn)
   }
 
