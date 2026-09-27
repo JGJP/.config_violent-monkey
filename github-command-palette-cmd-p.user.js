@@ -6,6 +6,8 @@
 // @match        https://github.com/*
 // @run-at       document-start
 // @grant        none
+// @updateURL    https://raw.githubusercontent.com/JGJP/.config_violent-monkey/master/github-command-palette-cmd-p.user.js
+// @downloadURL  https://raw.githubusercontent.com/JGJP/.config_violent-monkey/master/github-command-palette-cmd-p.user.js
 // ==/UserScript==
 
 (() => {
