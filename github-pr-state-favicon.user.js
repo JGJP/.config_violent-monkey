@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR: state favicon
 // @namespace    https://github.com/
-// @version      7.3.0
+// @version      7.4.0
 // @description  Sets the tab favicon to the matching Octicon per pull request state. For open/draft PRs the CI rollup takes over the icon: amber disc while checks run, red x-circle when they fail. Bursts on load, polls once a second, and watches the head via MutationObserver, re-applying with a fresh URL whenever the state changes or GitHub re-injects its own icon — always leaving ours as the sole icon link so Firefox can't fall back to GitHub's. Also prefixes the tab title with the PR number (#1234).
 // @match        https://github.com/*/*/pull/*
 // @run-at       document-idle
@@ -54,12 +54,16 @@
     'octicon-check-circle-fill': 'success',
     'octicon-skip': 'success',
   }
-  const CI_BY_COLOR = {
-    'color-fg-danger': 'failure',
-    'color-fg-severe': 'failure',
-    'color-fg-attention': 'pending',
-    'color-fg-success': 'success',
-  }
+  // GitHub's merge-box summary heading names the combined check status in plain English. Unlike the
+  // commit rollup octicon — which stays 'x' while a failed run's jobs are being re-run — this flips to
+  // the "haven't completed" wording the instant checks restart, so a re-run reads as pending, not failure.
+  // Order matters: pending wins over failure (something is running), and failure is tested before success
+  // so "not successful" isn't caught by the /successful/ branch.
+  const CI_BY_HEADING = [
+    [/haven.?t completed|in progress|still running|queued|pending/i, 'pending'],
+    [/not successful|have failed|failing|cancel/i, 'failure'],
+    [/have passed|successful/i, 'success'],
+  ]
 
   const fromText = (t) => {
     const k = (t || '').trim().toLowerCase()
@@ -83,25 +87,27 @@
     return null
   }
 
-  // Aggregate CI state from GitHub's check rollup (only rendered on the Conversation tab).
+  // Aggregate CI state, only rendered on the Conversation tab.
   // Returns 'failure' | 'pending' | 'success' | null (null = unknown, keep the state icon).
   const detectCI = () => {
-    // Every commit row carries its own "N / M checks OK" rollup; the LAST in the document is the
-    // HEAD commit (newest push) — the only state that matters. Taking the first would pin the icon
-    // to a stale earlier commit, so a green HEAD never clears a prior push's red/amber.
+    // Prefer GitHub's summary heading: it's the authoritative combined state and, critically, reports
+    // "haven't completed yet" the instant a re-run starts — while the rollup octicon below stays 'x'.
+    // Collect all check-related heading texts, then let CI_BY_HEADING's order pick (pending > failure >
+    // success) so an in-progress re-run wins even when a stale "N failing checks" label sits alongside it.
+    const texts = []
+    for (const el of document.querySelectorAll('h2, h3, h4, strong, [class*="Header"]')) {
+      const t = (el.textContent || '').trim()
+      if (t && t.length <= 90 && /\bchecks?\b/i.test(t)) texts.push(t)
+    }
+    for (const [re, state] of CI_BY_HEADING) if (texts.some((t) => re.test(t))) return state
+    // Fallback (no summary heading, e.g. logged-out): every commit row carries a "N / M checks OK"
+    // rollup; the LAST in the document is the HEAD commit (newest push) — the only state that matters.
     const svgs = [...document.querySelectorAll('svg[aria-label]')].filter((el) => {
       const a = el.getAttribute('aria-label') || '' // rollup reads e.g. "13 / 17 checks OK"
       return /\bchecks?\b/i.test(a) && [...el.classList].some((c) => CI_BY_OCTICON[c])
     })
     const svg = svgs[svgs.length - 1]
-    if (!svg) return null
-    const octicon = [...svg.classList].find((c) => CI_BY_OCTICON[c])
-    if (octicon) return CI_BY_OCTICON[octicon]
-    for (let el = svg; el; el = el.parentElement) {
-      const c = [...(el.classList || [])].find((x) => CI_BY_COLOR[x])
-      if (c) return CI_BY_COLOR[c]
-    }
-    return null
+    return svg ? CI_BY_OCTICON[[...svg.classList].find((c) => CI_BY_OCTICON[c])] : null
   }
 
   // CI status owns the icon while a PR is still open/draft; merged/closed always keep the state icon
